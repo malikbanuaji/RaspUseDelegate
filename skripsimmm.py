@@ -315,7 +315,7 @@ class ChatBox(telepot.DelegatorBot):
 			print('[info] reading success (time)')
 			
 				
-TOKEN = '333574709:AAH6JLNwXwYgExVxfFQ0rSGfBd-Ofq4eI4U'
+TOKEN = 'Your bot Token'
 
 bot = ChatBox(TOKEN)
 MessageLoop(bot).run_as_thread()
