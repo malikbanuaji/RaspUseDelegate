@@ -357,7 +357,7 @@ def main():
 		print("[INFO] no internet connection")
 		return
 	else:
-		TOKEN = '333574709:AAH6JLNwXwYgExVxfFQ0rSGfBd-Ofq4eI4U'
+		TOKEN = 'YOUR TOKEN HERE'
 
 		bot = ChatBox(TOKEN)
 		MessageLoop(bot).run_as_thread()
