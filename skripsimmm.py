@@ -7,10 +7,12 @@ from telepot.loop import MessageLoop
 from telepot.delegate import per_chat_id,per_chat_id_except, per_chat_id_in, create_open, pave_event_space
 import time
 import configparser
+from socket import timeout
+from urllib.request import urlopen, URLError
 
-from sdpcam import waktu
 #------------------------------#
-import sdpcamserver
+from sdpcam import waktu
+#import sdpcamserver
 #------------------------------#
 
 config = configparser.SafeConfigParser()
@@ -133,11 +135,12 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 			replyKeyboardMakeup2 = {'keyboard': keyboardLayout2, 'resize_keyboard': False, 'one_time_keyboard': True}
 			
 			if jam == 'BATAL':
-				papanmenu()
-				self.statuskam = 4
-				self.mn = True
-				self.cam = 0
-				menuutama(command)
+				self.close()
+				#papanmenu()
+				#self.statuskam = 4
+				#self.mn = True
+				#self.cam = 0
+				#menuutama(command)
 				
 			if self.statuskam == 0:
 				self.sender.sendMessage('Pada Jam Berapa?', reply_markup = replyKeyboardMakeup)
@@ -164,11 +167,7 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 				testjam = config.get(alarm,'hour')
 				testdurasi = config.get(alarm,'durasi')
 				self.sender.sendMessage(alarm+' telah disetel setiap pukul '+testjam+' selama '+testdurasi+' Menit')
-				self.mn = True
-				self.statuskam = self.statuskam + 1
-				self.cam = 0
-				papanmenu()
-				menuutama(command)
+				self.close()
 				
 			elif self.statuskam == 4:
 				print('Done.')
@@ -177,19 +176,31 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 		
 		def menuutama(commands):
 			if commands == 'AMBIL GAMBAR':
-				self.sender.sendMessage('AMBIL GAMBAR')
+				filenameimg = datetime.datetime.now().strftime('%Y%m%d-%H%M%S.jpg')
+				filenameimg_path = os.path.join(os.path.abspath('Pictures'), filenameimg)
+				x.startCaptureCam(filenameimg)
+				self.sender.sendChatAction('upload_photo')
+				self.sender.sendPhoto(open(filenameimg_path,'rb'),caption= filenameimg)
+				
 			elif commands == 'AMBIL VIDEO':
-				self.sender.sendMessage('AMBIL VIDEO')
+				filenamevid = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'+'.mp4')
+				filenamevid_path = os.path.join(os.path.abspath('Videos'), filenamevid)
+				x.startRecordCam(filenamevid)
+				self.sender.sendChatAction('upload_video')
+				self.sender.sendVideo(open(filenamevid_path, 'rb'),caption = filenamevid)
+				
 			elif commands == 'Panduan':
 				self.bot.sendMessage(chat_id, text = 'AMBIL GAMBAR - Mengambil gambar pada CCTV \nAMBIL VIDEO - Merekam video selama 10 detik \nKamera01-04 - Mengoperasikan kamera pada waktu dan durasi yang telah ditentukan \nBel01-04 - Mengoperasikan Bell pada waktu yang telah ditentukan\n\nSMA Dharma Putra')
 			elif commands == '/run':
+				x.enableAlarm()
 				x.loadConfig()
-				x.setStart()
-				x.start()
-				self.sender.sendMessage('AMBIL GAMBAR')
+				#x.setStart()
+				#x.start()
+				#self.sender.sendMessage('AMBIL GAMBAR')
 			elif commands == '/stop':
-				x.stop()
-				self.sender.sendMessage('AMBIL GAMBAR')
+				x.disableAlarm()
+				x.loadConfig()
+				#self.sender.sendMessage('AMBIL GAMBAR')
 			elif commands == 'Kamera01':
 				self.cam = 1
 			elif commands == 'Kamera02':
@@ -198,13 +209,13 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 				self.cam = 3
 			elif commands == 'Kamera04':
 				self.cam = 4
-			elif commands == 'Bell01':
+			elif commands == 'Bel01':
 				self.cam = 5
-			elif commands == 'Bell02':
+			elif commands == 'Bel02':
 				self.cam = 6
-			elif commands == 'Bell03':
+			elif commands == 'Bel03':
 				self.cam = 7
-			elif commands == 'Bell04':
+			elif commands == 'Bel04':
 				self.cam = 8
 		
 		if command == '/start':
@@ -248,11 +259,14 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 class ChatBox(telepot.DelegatorBot):
 	global config
 	global config1
+	global x
 	def __init__(self,token):
 		self.adminconfig()
 		self.timeconfig()
+		x.loadConfig()
+		x.start()
 		super(ChatBox, self).__init__(token, [
-			pave_event_space()(per_chat_id(), create_open, SmartRoomChat, timeout=60),
+			pave_event_space()(per_chat_id(), create_open, SmartRoomChat, timeout=90),
 				])
 	def adminconfig(self):
 		try:
@@ -314,12 +328,47 @@ class ChatBox(telepot.DelegatorBot):
 		else:
 			print('[info] reading success (time)')
 			
-				
-TOKEN = 'Your bot Token'
 
-bot = ChatBox(TOKEN)
-MessageLoop(bot).run_as_thread()
-print('Listening ...')
+def check_connectivity(reference):
+    try:
+        urlopen(reference, timeout=1)
+        return True
+    except URLError:
+        return False
 
-while 1:
-    time.sleep(10)
+
+def wait_for_internet():
+    while not check_connectivity("https://api.telegram.org"):
+        print("Waiting for internet")
+        time.sleep(1)
+
+def path():
+	filepath = ['Videos','Pictures']
+	for i in filepath:
+		if not os.path.exists(os.path.abspath(i)):
+			os.makedirs(os.path.abspath(i))
+		else:
+			print('[info] Load %s' % i)
+	
+def main():
+	try:
+		wait_for_internet()
+	except:
+		print("[INFO] no internet connection")
+		return
+	else:
+		TOKEN = '333574709:AAH6JLNwXwYgExVxfFQ0rSGfBd-Ofq4eI4U'
+
+		bot = ChatBox(TOKEN)
+		MessageLoop(bot).run_as_thread()
+		print('Listening ...')
+
+		while 1:
+			time.sleep(10)
+	finally:
+		print('[INFO] DONE.')
+
+if __name__ == "__main__":
+	path()
+	main()
+

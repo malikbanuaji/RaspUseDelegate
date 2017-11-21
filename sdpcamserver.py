@@ -7,11 +7,13 @@ from threading import Thread
 
 
 class myserver:
-	def __init__(self):
+	def openCap(self):
 		self.cap = cv2.VideoCapture(0)
 
 app = Flask(__name__)
 ServerCam = myserver()
+ServerCam.openCap()
+
 @app.route('/')
 def index():
     """Video streaming home page."""

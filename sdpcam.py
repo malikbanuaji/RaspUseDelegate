@@ -2,9 +2,8 @@ import datetime
 import time
 
 from threading import Thread
-from sdpcamserver import myserver
 
-import sdpcamserver
+
 import cv2
 import configparser
 
@@ -14,7 +13,14 @@ import os
 from urllib.request import urlopen
 
 class waktu:
-	#def __init__(self):
+	def __init__(self):
+		self.config = configparser.SafeConfigParser()
+		filepath = ['Videos','Pictures']
+		for i in filepath:
+			if not os.path.exists(os.path.abspath(i)):
+				os.makedirs(os.path.abspath(i))
+			else:
+				print('[info] Load %s' % i)
 		#self.stopped = False
 	def loadConfig(self):
 		self.config = configparser.SafeConfigParser()
@@ -41,29 +47,26 @@ class waktu:
 		x.start()
 	def update(self):
 		while True:
+			#self.config.read('SMADHARMAPUTRA.ini')
+			#self.state = self.config.get('status','status')
 			self.clock = datetime.datetime.now().strftime('%H:%M:%S')
 			time.sleep(1)
-			if self.stopped:
-				break
-				print('[INFO]-Alarm Has Been Disabled')
-			#if self.state == '1':
-			#if self.stopped == False:
-			if self.clock == self.jam1:
-				print('[INFO]-Alarm Trigerred..')
-				Thread(target=self.cam, args=[self.durasi1]).start()
-			if self.clock == self.jam2:
-				print('[INFO]-Alarm Trigerred..')
-				Thread(target=self.cam, args=[self.durasi2]).start()
-			if self.clock == self.jam3:
-				print('[INFO]-Alarm Trigerred..')
-				Thread(target=self.cam, args=[self.durasi3]).start()
-			if self.clock == self.jam4:
-				print('[INFO]-Alarm Trigerred..')
-				Thread(target=self.cam, args=[self.durasi4]).start()
-				
-			#if self.state == '0':
-			
-			print('[TIME] - '+self.clock)
+			if self.state == '1':
+				print('[TIME] ENABLED - '+self.clock)
+				if self.clock == self.jam1:
+					print('[INFO]-Alarm Trigerred..')
+					Thread(target=self.cam, args=[self.durasi1]).start()
+				if self.clock == self.jam2:
+					print('[INFO]-Alarm Trigerred..')
+					Thread(target=self.cam, args=[self.durasi2]).start()
+				if self.clock == self.jam3:
+					print('[INFO]-Alarm Trigerred..')
+					Thread(target=self.cam, args=[self.durasi3]).start()
+				if self.clock == self.jam4:
+					print('[INFO]-Alarm Trigerred..')
+					Thread(target=self.cam, args=[self.durasi4]).start()
+			if self.state == '0':
+				print('[TIME] DISABLED - '+self.clock)
 			
 	def startCaptureCam(self, name):
 		url = 'http://localhost:8080/video_feed'
@@ -93,7 +96,9 @@ class waktu:
 		(grab, frame) = cap.read()
 		for i in range(100):
 			(grab, frame) = cap.read()
-		cv2.imwrite(name, frame)
+		#Saving file to pciture
+		name_path = os.path.join('Pictures', name)
+		cv2.imwrite(name_path, frame)
 	def startRecordCam(self, name):
 		url = 'http://localhost:8080/video_feed'
 		try:
@@ -111,12 +116,13 @@ class waktu:
 				
 		else:
 			print("[INFO] recording now")
-			self.httpRecordCam()
+			self.httpRecordCam(name)
 			
 		finally:
 			print("[INFO] done.")
 	
 	def httpRecordCam(self,name):
+		name_path = os.path.join(os.path.abspath('Videos'), name)
 		sp.call(["ffmpeg",
 			"-f","mjpeg",
 			"-video_size", "640x480" ,
@@ -136,8 +142,9 @@ class waktu:
 			"-pix_fmt","yuv420p",
 			"-c:a", "aac",
 			"-f","mp4",
-			name])
+			name_path])
 	def liveRecordCam(self,name):
+		name_path = os.path.join(os.path.abspath('Videos'), name)
 		sp.call(["ffmpeg",
 			"-f","v4l2",
 			"-video_size", "640x480" ,
@@ -157,11 +164,13 @@ class waktu:
 			"-pix_fmt","yuv420p",
 			"-c:a", "aac",
 			"-f","mp4",
-			name])
+			name_path])
 	def cam(self,duration):
 		filenamevid = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'+'.mp4')
+		import sdpcamserver
 		sdpcamserver.startServer()
 		time.sleep(1)
+		filenamevid_path = os.path.join(os.path.abspath('Videos'), filenamevid)
 		sp.call(["ffmpeg",
 			"-f","mjpeg",
 			#"-video_size", "640x480" ,
@@ -170,6 +179,8 @@ class waktu:
 			"-f", "lavfi",
 			"-i", "anullsrc=channel_layout=stereo:sample_rate=40000",
 			"-vcodec", "libx264",
+			"-b:v", "256k",
+			#"-crf", "28",
 			"-t", duration,
 			"-c:a", "aac",
 			"-f","mp4","temp"+filenamevid])
@@ -192,17 +203,25 @@ class waktu:
 			"-video_size", "640x480",
 			"-vcodec","libx264",
 			"-acodec","copy",
-			"-minrate", "192k",
-			"-b:v", "192k",
-			"-maxrate", "256k",
+			#"-minrate", "128k",
+			#"-b:v", "192k",
+			#"-maxrate", "256k",
 			"-preset","slow",
 			"-pix_fmt","yuv420p",
-			"-crf","27",
+			"-crf","28",
 			"-f","mp4",
-			filenamevid])
+			filenamevid_path])
 		os.remove("temp"+filenamevid)
 		urlopen('http://localhost:8080/shutdown')
-	def stop(self):
-		self.stopped = True
-	def setStart(self):
-		self.stopped = False
+	def enableAlarm(self):
+		self.config.read('SMADHARMAPUTRA.ini')
+		self.config.set('status','status','1')
+		with open('SMADHARMAPUTRA.ini','w+') as configfile:
+			self.config.write(configfile)
+			configfile.close()
+	def disableAlarm(self):
+		self.config.read('SMADHARMAPUTRA.ini')
+		self.config.set('status','status','0')
+		with open('SMADHARMAPUTRA.ini','w+') as configfile:
+			self.config.write(configfile)
+			configfile.close()
