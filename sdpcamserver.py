@@ -54,7 +54,10 @@ def shutdown():
 	return 'Server shutting down...'
 	
 def startServerCam():
-	app.run(host='0.0.0.0',port ='8080',threaded= True)
-	
+	try:
+		app.run(host='0.0.0.0',port ='8080',threaded= True)
+	except KeyboardInterrupt:
+		shutdown_server()	
 def startServer():
-	Thread(target=startServerCam).start()
+	Thread(target=startServerCam, name='SERVER').start()
+

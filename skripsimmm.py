@@ -3,8 +3,9 @@ import numpy as np
 import datetime
 import os
 import subprocess as sp
+from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
 from telepot.loop import MessageLoop
-from telepot.delegate import per_chat_id,per_chat_id_except, per_chat_id_in, create_open, pave_event_space
+from telepot.delegate import per_chat_id,per_chat_id_except, per_chat_id_in, create_open, pave_event_space, include_callback_query_chat_id
 import time
 import configparser
 from socket import timeout
@@ -18,6 +19,35 @@ from sdpcam import waktu
 config = configparser.SafeConfigParser()
 config1 = configparser.SafeConfigParser()
 x = waktu()
+
+class NonAdmin(telepot.helper.ChatHandler):
+	def __init__(self, *args, **kwargs):
+		super(NonAdmin, self).__init__(*args, **kwargs)
+	def on_chat_message(self, msg):
+		content_type, chat_type, chat_id = telepot.glance(msg)
+		command = msg['text']
+		
+
+		if content_type == 'text':
+			self.sender.sendMessage('Tolong Masukan Password')
+		config = configparser.SafeConfigParser()
+		config.read('telebot.ini')
+		check = config.get('admin','chatid')
+		if check == '000000000':
+			if command == '000000000':
+				config.set('admin','chatid',str(chat_id))
+				config.set('admin','password',str(chat_id))
+				with open('telebot.ini','w+') as fp:
+					config.write(fp)
+					fp.close()
+				self.sender.sendMessage('Admin ID telah di tetapkan, Restarting BOT')
+				sp.call(["sudo","reboot"])
+		else:
+			return
+	def on_idle(self, event):
+		self.close
+	def on_close(self, ex):
+		print('Closing')
 
 class SmartRoomChat(telepot.helper.ChatHandler):
 	global config
@@ -44,13 +74,13 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 	def on_chat_message(self, msg):
 		content_type, chat_type, chat_id = telepot.glance(msg)
 		command = msg['text']
-		print ('Got command: %s' % command)
+		print ('Got command: %s \r' % command)
 		print (chat_id)
 		
 		def papanmenu():
 			keyboardLayout = [['AMBIL GAMBAR','AMBIL VIDEO'],
-				['Bel01','Bel02','Bel03','Bel04',],
-				['Kamera01','Kamera02','Kamera03','Kamera04'],['Panduan']]			
+				#['Bel01','Bel02','Bel03','Bel04',],
+				['Alarm 1','Alarm 2','Alarm 3','Alarm 4'],['Panduan','Status']]			
 			replyKeyboardMakeup = {'keyboard': keyboardLayout, 'resize_keyboard': False, 'one_time_keyboard': True}
 			self.sender.sendMessage('[Panduan] untuk informasi lebih lanjut',reply_markup = replyKeyboardMakeup)
 		
@@ -104,9 +134,11 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 				config.set(alarm,'time_off',self.bellahasil+':00')
 				with open('SMADHARMAPUTRA.ini','w+') as configfile:
 					config.write(configfile)
+					configfile.close()
 				testjam = config.get(alarm,'time_on')
 				testdurasi = config.get(alarm,'time_off')
 				self.sender.sendMessage(alarm+' telah disetel setiap pukul '+testjam+' dan berakhir pada pukul '+testdurasi)
+				
 				self.close()
 			elif self.statuskam == 5:
 				print('Done.')
@@ -164,9 +196,11 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 				config.set(alarm,'durasi','00:'+self.konfigdurasi+':00')
 				with open('SMADHARMAPUTRA.ini','w+') as configfile:
 					config.write(configfile)
+					configfile.close()
 				testjam = config.get(alarm,'hour')
 				testdurasi = config.get(alarm,'durasi')
 				self.sender.sendMessage(alarm+' telah disetel setiap pukul '+testjam+' selama '+testdurasi+' Menit')
+				x.loadConfig()
 				self.close()
 				
 			elif self.statuskam == 4:
@@ -180,34 +214,55 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 				filenameimg_path = os.path.join(os.path.abspath('Pictures'), filenameimg)
 				x.startCaptureCam(filenameimg)
 				self.sender.sendChatAction('upload_photo')
-				self.sender.sendPhoto(open(filenameimg_path,'rb'),caption= filenameimg)
-				
+				try:
+					self.sender.sendPhoto(open(filenameimg_path,'rb'),caption= filenameimg)
+				except:
+					self.sender.sendMessage('Terjadi kesalahan silahkan ulang beberapa saat lagi')
 			elif commands == 'AMBIL VIDEO':
 				filenamevid = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'+'.mp4')
 				filenamevid_path = os.path.join(os.path.abspath('Videos'), filenamevid)
 				x.startRecordCam(filenamevid)
 				self.sender.sendChatAction('upload_video')
-				self.sender.sendVideo(open(filenamevid_path, 'rb'),caption = filenamevid)
+				try:
+					self.sender.sendVideo(open(filenamevid_path, 'rb'),caption = filenamevid)
+				except:
+					self.sender.sendMessage('Terjadi kesalahan silahkan ulang beberapa saat lagi')
 				
 			elif commands == 'Panduan':
-				self.bot.sendMessage(chat_id, text = 'AMBIL GAMBAR - Mengambil gambar pada CCTV \nAMBIL VIDEO - Merekam video selama 10 detik \nKamera01-04 - Mengoperasikan kamera pada waktu dan durasi yang telah ditentukan \nBel01-04 - Mengoperasikan Bell pada waktu yang telah ditentukan\n\nSMA Dharma Putra')
-			elif commands == '/run':
-				x.enableAlarm()
-				x.loadConfig()
-				#x.setStart()
-				#x.start()
-				#self.sender.sendMessage('AMBIL GAMBAR')
-			elif commands == '/stop':
-				x.disableAlarm()
-				x.loadConfig()
-				#self.sender.sendMessage('AMBIL GAMBAR')
-			elif commands == 'Kamera01':
+				self.bot.sendMessage(chat_id, text = 'AMBIL GAMBAR - Mengambil gambar pada CCTV \nAMBIL VIDEO - Merekam video selama 10 detik \nAlarm (1-4) - Mengoperasikan kamera pada waktu dan durasi yang telah ditentukan \n/setelpabrik - mengatur ulang Admin ID dan Semua pengatura\n/reset - Mengatur pengaturan seperti awal (ID Admin Tidak Termasuk)\n\nSMA Dharma Putra')
+
+			elif commands == 'Status':
+				config1.read('telebot.ini')
+				config.read('SMADHARMAPUTRA.ini')
+				pwd = config1.get('admin','password')
+				kam1 = config.get('alarmcam1','hour')
+				kam2 = config.get('alarmcam2','hour')
+				kam3 = config.get('alarmcam3','hour')
+				kam4 = config.get('alarmcam4','hour')
+				dkam1 = config.get('alarmcam1','durasi')
+				dkam2 = config.get('alarmcam2','durasi')
+				dkam3 = config.get('alarmcam3','durasi')
+				dkam4 = config.get('alarmcam4','durasi')
+				stat = config.get('status','status')
+				s = ''
+				ssid = sp.check_output(["iwgetid","-r"])
+				ssidstr = ssid.decode("utf-8")
+				if stat == '0':
+					s = 'Tidak Aktif'
+					keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Mulai Alarm', callback_data='alyes')]])
+				elif stat == '1':
+					s = 'Aktif'
+					keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Matikan Alarm', callback_data='alno')]])
+				chatkam = self.sender.sendMessage('SSID      :%sPassword : %s(admin)\n------------------\nAlarm 1  : %s Durasi(%s)\nAlarm 2  : %s Durasi(%s)\nAlarm 3  : %s Durasi(%s)\nAlarm 4  : %s Durasi(%s)\nAlarm     : %s' %(ssidstr, pwd, kam1, dkam1, kam2, dkam2, kam3, dkam3, kam4, dkam4, s),reply_markup=keyboard)
+				self._alarm = telepot.helper.Editor(self.bot, chatkam)
+
+			elif commands == 'Alarm 1':
 				self.cam = 1
-			elif commands == 'Kamera02':
+			elif commands == 'Alarm 2':
 				self.cam = 2
-			elif commands == 'Kamera03':
+			elif commands == 'Alarm 3':
 				self.cam = 3
-			elif commands == 'Kamera04':
+			elif commands == 'Alarm 4':
 				self.cam = 4
 			elif commands == 'Bel01':
 				self.cam = 5
@@ -220,6 +275,10 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 		
 		if command == '/start':
 			papanmenu()
+		elif command == '/setelpabrik':
+			self._delete_confirmation()
+		elif command == '/reset':
+			self._reset_confirmation()
 		if self.mn == True:
 			menuutama(command)
 		
@@ -244,14 +303,121 @@ class SmartRoomChat(telepot.helper.ChatHandler):
 		elif self.cam == 8:
 			bellconfig(command,'alarmrelay4')
 			
+	def _delete_confirmation(self):
+		keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+			InlineKeyboardButton(text='Ya', callback_data='delyes'),
+			InlineKeyboardButton(text='Tidak', callback_data='delno'),]])
+		sent = self.sender.sendMessage('Apakah Anda Yakin Ingin Setel Ulang Pabrik ?\nAdmin ID akan tereset', reply_markup=keyboard)
+		self._editor = telepot.helper.Editor(self.bot, sent)
+	def _reset_confirmation(self):
+		keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+			InlineKeyboardButton(text='Ya', callback_data='resyes'),
+			InlineKeyboardButton(text='Tidak', callback_data='resno'),]])
+		sent = self.sender.sendMessage('Apakah anda yakin ingin melakukan reset?\nSeluruh pengaturan Alarm akan dibuat seperti semula(kecuali Admin ID)', reply_markup=keyboard)
+		self._reset = telepot.helper.Editor(self.bot, sent)
+	def on_callback_query(self,msg):
+		query_id, from_id, query_data = telepot.glance(msg, flavor='callback_query')
 		
+		if query_data == 'delyes':
+			config1.read('telebot.ini')
+			config1.set('admin','chatid','000000000')
+			config1.set('admin','password','000000000')
+			with open('telebot.ini','w+') as fp:
+				config1.write(fp)
+				fp.close()
+			if self._editor:
+				self._editor.editMessageText('Setel pabrik sukses, anda bukan admin\n\nMohon tunggu sistem sedang mengatur ulang')
+				self._editor = None
+			sp.call(["sudo","reboot"])
+		elif query_data == 'delno':
+			if self._editor:
+				self._editor.editMessageText('Dibatalkan')
+				self._editor = None
+		
+		elif query_data == 'resyes':
+			config.read('SMADHARMAPUTRA.ini')
+			config.set('status','status','0')
+			config.set('alarmcam1','hour','00:00:00')
+			config.set('alarmcam2','hour','00:00:00')
+			config.set('alarmcam3','hour','00:00:00')
+			config.set('alarmcam4','hour','00:00:00')
+			config.set('alarmrelay1','time_on','00:00:00')
+			config.set('alarmrelay2','time_on','00:00:00')
+			config.set('alarmrelay3','time_on','00:00:00')
+			config.set('alarmrelay4','time_on','00:00:00')
+			config.set('alarmcam1','durasi','00:00:00')
+			config.set('alarmcam2','durasi','00:00:00')
+			config.set('alarmcam3','durasi','00:00:00')
+			config.set('alarmcam4','durasi','00:00:00')
+			config.set('alarmrelay1','time_off','00:00:00')
+			config.set('alarmrelay2','time_off','00:00:00')
+			config.set('alarmrelay3','time_off','00:00:00')
+			config.set('alarmrelay4','time_off','00:00:00')
+			with open('SMADHARMAPUTRA.ini','w+') as fp:
+				config.write(fp)
+				fp.close()
+			if self._reset:
+				self._reset.editMessageText('Pengaturan ulang sukses')
+				self._reset = None
+		elif query_data == 'resno':
+			if self._reset:
+				self._reset.editMessageText('Dibatalkan')
+				self._reset = None		
+
+		elif query_data == 'alyes':
+			x.enableAlarm()
+			x.loadConfig()
+			config1.read('telebot.ini')
+			config.read('SMADHARMAPUTRA.ini')
+			pwd = config1.get('admin','password')
+			kam1 = config.get('alarmcam1','hour')
+			kam2 = config.get('alarmcam2','hour')
+			kam3 = config.get('alarmcam3','hour')
+			kam4 = config.get('alarmcam4','hour')
+			dkam1 = config.get('alarmcam1','durasi')
+			dkam2 = config.get('alarmcam2','durasi')
+			dkam3 = config.get('alarmcam3','durasi')
+			dkam4 = config.get('alarmcam4','durasi')
+			stat = config.get('status','status')
+			s = ''
+			if stat == '0':
+				s = 'Tidak Aktif'
+				keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Mulai Alarm', callback_data='alyes')]])
+			elif stat == '1':
+				s = 'Aktif'
+				keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Matikan Alarm', callback_data='alno')]])
+			if self._alarm:
+				self._alarm.editMessageText('Password : %s\n------------------\nAlarm 1  : %s Durasi(%s)\nAlarm 2  : %s Durasi(%s)\nAlarm 3  : %s Durasi(%s)\nAlarm 4  : %s Durasi(%s)\nAlarm     : %s' %(pwd, kam1, dkam1, kam2, dkam2, kam3, dkam3, kam4, dkam4, s),reply_markup=keyboard)
+		elif query_data == 'alno':
+			x.disableAlarm()
+			x.loadConfig()
+			config1.read('telebot.ini')
+			config.read('SMADHARMAPUTRA.ini')
+			pwd = config1.get('admin','password')
+			kam1 = config.get('alarmcam1','hour')
+			kam2 = config.get('alarmcam2','hour')
+			kam3 = config.get('alarmcam3','hour')
+			kam4 = config.get('alarmcam4','hour')
+			dkam1 = config.get('alarmcam1','durasi')
+			dkam2 = config.get('alarmcam2','durasi')
+			dkam3 = config.get('alarmcam3','durasi')
+			dkam4 = config.get('alarmcam4','durasi')
+			stat = config.get('status','status')
+			s = ''
+			if stat == '0':
+				s = 'Tidak Aktif'
+				keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Mulai Alarm', callback_data='alyes')]])
+			elif stat == '1':
+				s = 'Aktif'
+				keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Matikan Alarm', callback_data='alno')]])
+			if self._alarm:
+				self._alarm.editMessageText('Password : %s\n------------------\nAlarm 1  : %s Durasi(%s)\nAlarm 2  : %s Durasi(%s)\nAlarm 3  : %s Durasi(%s)\nAlarm 4  : %s Durasi(%s)\nAlarm     : %s' %(pwd, kam1, dkam1, kam2, dkam2, kam3, dkam3, kam4, dkam4, s),reply_markup=keyboard)
 	def on__idle(self, event):
 		self.close()
 		
 	def on_close(self, ex):
 		keyboardLayout = [['AMBIL GAMBAR','AMBIL VIDEO'],
-				['Bel01','Bel02','Bel03','Bel04',],
-				['Kamera01','Kamera02','Kamera03','Kamera04'],['Panduan']]			
+				['Alarm 1','Alarm 2','Alarm 3','Alarm 4'],['Panduan','Status']]			
 		replyKeyboardMakeup = {'keyboard': keyboardLayout, 'resize_keyboard': False, 'one_time_keyboard': True}
 		self.sender.sendMessage('[Panduan] untuk informasi lebih lanjut',reply_markup = replyKeyboardMakeup)
 		print('Timeout Excedded')
@@ -264,9 +430,12 @@ class ChatBox(telepot.DelegatorBot):
 		self.adminconfig()
 		self.timeconfig()
 		x.loadConfig()
-		x.start()
+		config1.read('telebot.ini')
+		idadmin = config1.get('admin','chatid')
+		x.camStart()
 		super(ChatBox, self).__init__(token, [
-			pave_event_space()(per_chat_id(), create_open, SmartRoomChat, timeout=90),
+			include_callback_query_chat_id(pave_event_space())(per_chat_id_in([int(idadmin)],types='private'), create_open, SmartRoomChat, timeout=90),
+			pave_event_space()(per_chat_id_except([int(idadmin)],types='private'), create_open, NonAdmin, timeout=10),
 				])
 	def adminconfig(self):
 		try:
@@ -278,6 +447,7 @@ class ChatBox(telepot.DelegatorBot):
 				config1.set('admin','password','000000000')
 				with open('telebot.ini', 'w') as fp:
 					config1.write(fp)
+					fp.close()
 			except:
 				print('[info] failed')
 			else:
@@ -321,6 +491,7 @@ class ChatBox(telepot.DelegatorBot):
 				config.set('alarmrelay4','time_off','00:00:00')
 				with open('SMADHARMAPUTRA.ini','w') as configfile:
 					config.write(configfile)
+					configfile.close()
 					#config.readfp(configfile)
 				print('Membuat Konfigurasi....')
 			except:
@@ -355,19 +526,23 @@ def main():
 		wait_for_internet()
 	except:
 		print("[INFO] no internet connection")
-		return
+		return main()
 	else:
-		TOKEN = 'YOUR TOKEN HERE'
+		try:
+			config1.read('telebot.ini')
+			chatid = config1.get('admin','chatid')
+			TOKEN = ''
+			box = telepot.Bot(TOKEN)
+			bot = ChatBox(TOKEN)
+			MessageLoop(bot).run_as_thread()
+			print('Listening ...')
 
-		bot = ChatBox(TOKEN)
-		MessageLoop(bot).run_as_thread()
-		print('Listening ...')
-
-		while 1:
-			time.sleep(10)
-	finally:
-		print('[INFO] DONE.')
-
+			while 1:
+				box.sendMessage(int(chatid), text = 'SMA Dharma Putra')
+				time.sleep(1800)
+		except KeyboardInterrupt:
+			x.stop()
+			exit(0)
 if __name__ == "__main__":
 	path()
 	main()
