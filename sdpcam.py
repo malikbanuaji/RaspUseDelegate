@@ -121,7 +121,7 @@ class waktu:
 		#Saving file to pciture
 		name_path = os.path.join('Pictures', name)
 		cv2.imwrite(name_path, frame)
-	def startRecordCam(self, name):
+	def startRecordCam(self, name,duration):
 		url = 'http://0.0.0.0:8080/video_feed'
 		try:
 			print("[INFO] opening stream..")
@@ -131,7 +131,7 @@ class waktu:
 			print("[FAIL] failed opening cam from stream")
 			try:
 				print("[INFO] recording now livecam")
-				self.liveRecordCam(name)
+				self.liveRecordCam(name,duration)
 			except:
 				print("[FAIL] failed opening cam from webcam")
 			#else:
@@ -139,12 +139,12 @@ class waktu:
 				
 		else:
 			print("[INFO] recording now")
-			self.httpRecordCam(name)
+			self.httpRecordCam(name,duration)
 			
 		finally:
 			print("[INFO] done.")
 	
-	def httpRecordCam(self,name):
+	def httpRecordCam(self,name,duration):
 		name_path = os.path.join(os.path.abspath('Videos'), name)
 		sp.call(["ffmpeg",
 			"-f","mjpeg",
@@ -156,15 +156,15 @@ class waktu:
 			"-minrate", "256k",
 			"-b:v", "256k",
 			"-maxrate", "512k",
-			"-t", "00:00:10",
+			"-t", duration,
 			#"-r", "10",
-			"-crf","28",
+			"-crf","24",
 			"-preset","slow",
 			"-pix_fmt","yuv420p",
 			"-c:a", "aac",
 			"-f","mp4",
 			name_path])
-	def liveRecordCam(self,name):
+	def liveRecordCam(self,name,duration):
 		name_path = os.path.join(os.path.abspath('Videos'), name)
 		sp.call(["ffmpeg",
 			"-thread_queue_size", "512",
@@ -179,9 +179,9 @@ class waktu:
 			"-minrate", "256k",
 			"-b:v", "256k",
 			"-maxrate", "512k",
-			"-t", "00:00:10",
+			"-t", duration,
 			"-r", "10",
-			"-crf","28",
+			"-crf","24",
 			"-preset","slow",
 			"-pix_fmt","yuv420p",
 			"-c:a", "aac",
@@ -245,7 +245,7 @@ class waktu:
 				#"-maxrate", "256k",
 				"-preset","slow",
 				"-pix_fmt","yuv420p",
-				"-crf","28",
+				"-crf","24",
 				"-f","mp4",
 				filenamevid_path])
 			time.sleep(0.5)
