@@ -14,7 +14,7 @@ from urllib.request import urlopen
 
 class waktu:
 	def __init__(self):
-		self.bot = telepot.Bot('501033727:AAGTkZY5pCHy0iXdpCp7yzWf-BzaENGUoqM')
+		self.bot = telepot.Bot('Your Token Here')
 		self.stopped = False
 		self.config = configparser.SafeConfigParser()
 		filepath = ['Videos','Pictures']
