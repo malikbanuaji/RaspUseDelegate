@@ -627,7 +627,7 @@ def main():
 		try:
 			config1.read('telebot.ini')
 			chatid = config1.get('admin','chatid')
-			TOKEN = '501033727:AAGTkZY5pCHy0iXdpCp7yzWf-BzaENGUoqM'
+			TOKEN = 'YourTokenHere'
 			box = telepot.Bot(TOKEN)
 			bot = ChatBox(TOKEN)
 			MessageLoop(bot).run_as_thread()
